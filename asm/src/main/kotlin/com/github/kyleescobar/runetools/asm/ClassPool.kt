@@ -13,8 +13,9 @@ import java.util.jar.JarOutputStream
 class ClassPool {
 
     private val classMap = hashMapOf<String, ClassNode>()
+    private val ignoredClasses = hashSetOf<String>()
 
-    val classes get() = classMap.values.toList()
+    val classes get() = classMap.values.filter { it.name !in ignoredClasses }.toList()
 
     fun addClass(node: ClassNode) {
         classMap[node.name] = node
@@ -25,6 +26,14 @@ class ClassPool {
     }
 
     fun getClass(name: String): ClassNode? = classMap[name]
+
+    fun ignoreClass(name: String) {
+        ignoredClasses.add(name)
+    }
+
+    fun unignoreClass(name: String) {
+        ignoredClasses.remove(name)
+    }
 
     fun loadJar(file: File, filter: (String) -> Boolean = { true }) {
         if(!file.exists()) throw FileNotFoundException()
@@ -46,9 +55,9 @@ class ClassPool {
             file.deleteRecursively()
         }
         val jos = JarOutputStream(FileOutputStream(file))
-        classes.forEach { cls ->
+        classMap.values.forEach { cls ->
             jos.putNextEntry(JarEntry(cls.name + ".class"))
-            val writer = ClassWriter(ClassWriter.COMPUTE_MAXS)
+            val writer = ClassWriter(0)
             cls.accept(writer)
             jos.write(writer.toByteArray())
             jos.closeEntry()
@@ -56,6 +65,8 @@ class ClassPool {
         jos.close()
     }
 
-    fun clear() = classMap.clear()
+    fun clear() {
+        classMap.keys.removeIf { it !in ignoredClasses }
+    }
 
 }

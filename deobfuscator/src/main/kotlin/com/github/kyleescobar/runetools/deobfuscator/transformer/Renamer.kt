@@ -40,7 +40,7 @@ class Renamer : Transformer {
         /*
          * Generate class mappings
          */
-        pool.classes.filter { it.name.length <= 3 }.forEach { cls ->
+        pool.classes.filter { it.name.length <= 2 }.forEach { cls ->
             val newName = "class${++classCount}"
             mappings[cls.name] = newName
         }

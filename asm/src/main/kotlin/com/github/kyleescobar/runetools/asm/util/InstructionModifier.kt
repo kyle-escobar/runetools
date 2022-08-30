@@ -10,6 +10,7 @@ class InstructionModifier {
         private val EMPTY_LIST = InsnList()
     }
 
+    private val insns = InsnList()
     private val replacements = hashMapOf<AbstractInsnNode, InsnList>()
     private val appends = hashMapOf<AbstractInsnNode, InsnList>()
     private val prepends = hashMapOf<AbstractInsnNode, InsnList>()
@@ -44,6 +45,14 @@ class InstructionModifier {
         replacements[original] = list
     }
 
+    fun add(insn: AbstractInsnNode) {
+        this.insns.add(insn)
+    }
+
+    fun addAll(insns: List<AbstractInsnNode>) {
+        insns.forEach { this.insns.add(it) }
+    }
+
     fun remove(original: AbstractInsnNode) {
         replacements[original] = EMPTY_LIST
     }
@@ -53,6 +62,9 @@ class InstructionModifier {
     }
 
     fun apply(method: MethodNode) {
+        this.insns.forEach { insn ->
+            method.instructions.add(insn)
+        }
         replacements.forEach { (original, insns) ->
             method.instructions.insert(original, insns)
             method.instructions.remove(original)

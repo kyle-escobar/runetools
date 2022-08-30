@@ -1,8 +1,11 @@
 package com.github.kyleescobar.runetools.deobfuscator
 
 import com.github.kyleescobar.runetools.asm.ClassPool
+import com.github.kyleescobar.runetools.deobfuscator.transformer.ControlFlowFixer
+import com.github.kyleescobar.runetools.deobfuscator.transformer.DeadCodeRemover
 import com.github.kyleescobar.runetools.deobfuscator.transformer.Renamer
 import com.github.kyleescobar.runetools.deobfuscator.transformer.RuntimeExceptionRemover
+import com.github.kyleescobar.runetools.deobfuscator.util.DeobUtils.isIgnored
 import org.tinylog.kotlin.Logger
 import java.io.File
 import java.io.FileNotFoundException
@@ -17,6 +20,8 @@ object Deobfuscator {
      */
     private val transformers = mutableListOf(
         RuntimeExceptionRemover::class,
+        //DeadCodeRemover::class,
+        ControlFlowFixer::class,
         Renamer::class
     )
 
@@ -40,6 +45,11 @@ object Deobfuscator {
 
         Logger.info("Loading classes from jar file: ${input.path}.")
         pool.loadJar(input)
+        pool.classes.forEach { cls ->
+            if(cls.isIgnored()) {
+                pool.ignoreClass(cls.name)
+            }
+        }
         Logger.info("Successfully loaded ${pool.classes.size} classes.")
 
         /*

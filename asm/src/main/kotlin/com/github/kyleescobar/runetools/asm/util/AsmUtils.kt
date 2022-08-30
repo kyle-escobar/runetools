@@ -51,20 +51,17 @@ fun InsnList.copy(): InsnList {
 
 fun InsnList.clone(): InsnList {
     val newInsnList = InsnList()
-    val labels = hashMapOf<LabelNode, LabelNode>()
+    val labels = LabelMap()
     var insn = this.first
-    while(insn != null) {
-        if(insn is LabelNode) {
-            labels[insn] = LabelNode()
-        }
-        insn = insn.next
-    }
-
-    insn = this.first
     while(insn != null) {
         newInsnList.add(insn.clone(labels))
         insn = insn.next
     }
-
     return newInsnList
+}
+
+class LabelMap : AbstractMap<LabelNode, LabelNode>() {
+    private val map = hashMapOf<LabelNode, LabelNode>()
+    override val entries get() = throw IllegalStateException()
+    override fun get(key: LabelNode) = map.getOrPut(key) { LabelNode() }
 }
