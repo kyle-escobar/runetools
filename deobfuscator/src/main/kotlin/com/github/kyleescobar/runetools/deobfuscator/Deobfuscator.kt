@@ -1,10 +1,7 @@
 package com.github.kyleescobar.runetools.deobfuscator
 
 import com.github.kyleescobar.runetools.asm.ClassPool
-import com.github.kyleescobar.runetools.deobfuscator.transformer.ControlFlowFixer
-import com.github.kyleescobar.runetools.deobfuscator.transformer.DeadCodeRemover
-import com.github.kyleescobar.runetools.deobfuscator.transformer.Renamer
-import com.github.kyleescobar.runetools.deobfuscator.transformer.RuntimeExceptionRemover
+import com.github.kyleescobar.runetools.deobfuscator.transformer.*
 import com.github.kyleescobar.runetools.deobfuscator.util.DeobUtils.isIgnored
 import org.tinylog.kotlin.Logger
 import java.io.File
@@ -20,9 +17,12 @@ object Deobfuscator {
      */
     private val transformers = mutableListOf(
         RuntimeExceptionRemover::class,
-        //DeadCodeRemover::class,
+        DeadCodeRemover::class,
         ControlFlowFixer::class,
-        Renamer::class
+        Renamer::class,
+        OpaquePredicateRemover::class,
+        RedundantGotoRemover::class,
+        //StackFrameRebuilder::class
     )
 
     @JvmStatic

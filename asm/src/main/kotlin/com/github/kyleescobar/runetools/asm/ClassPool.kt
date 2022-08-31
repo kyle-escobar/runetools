@@ -1,5 +1,7 @@
 package com.github.kyleescobar.runetools.asm
 
+import codechicken.asm.CC_ClassWriter
+import codechicken.asm.ClassHierarchyManager
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.tree.ClassNode
@@ -12,7 +14,7 @@ import java.util.jar.JarOutputStream
 
 class ClassPool {
 
-    private val classMap = hashMapOf<String, ClassNode>()
+    val classMap = hashMapOf<String, ClassNode>()
     private val ignoredClasses = hashSetOf<String>()
 
     val classes get() = classMap.values.filter { it.name !in ignoredClasses }.toList()
@@ -43,7 +45,7 @@ class ClassPool {
                 .forEach { entry ->
                     val node = ClassNode()
                     val reader = ClassReader(jar.getInputStream(entry))
-                    reader.accept(node, ClassReader.SKIP_DEBUG)
+                    reader.accept(node, ClassReader.SKIP_FRAMES)
                     if(!filter(node.name)) return@forEach
                     addClass(node)
                 }
@@ -54,10 +56,11 @@ class ClassPool {
         if(file.exists()) {
             file.deleteRecursively()
         }
+
         val jos = JarOutputStream(FileOutputStream(file))
         classMap.values.forEach { cls ->
             jos.putNextEntry(JarEntry(cls.name + ".class"))
-            val writer = ClassWriter(0)
+            val writer = ClassWriter(ClassWriter.COMPUTE_MAXS)
             cls.accept(writer)
             jos.write(writer.toByteArray())
             jos.closeEntry()

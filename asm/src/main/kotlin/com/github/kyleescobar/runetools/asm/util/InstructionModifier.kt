@@ -62,9 +62,6 @@ class InstructionModifier {
     }
 
     fun apply(method: MethodNode) {
-        this.insns.forEach { insn ->
-            method.instructions.add(insn)
-        }
         replacements.forEach { (original, insns) ->
             method.instructions.insert(original, insns)
             method.instructions.remove(original)
@@ -74,6 +71,9 @@ class InstructionModifier {
         }
         appends.forEach { (original, insns) ->
             method.instructions.insert(original, insns)
+        }
+        this.insns.forEach { insn ->
+            method.instructions.add(insn)
         }
     }
 }
