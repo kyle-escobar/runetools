@@ -5,12 +5,14 @@ import com.github.kyleescobar.runetools.asm.util.InstructionModifier
 import com.github.kyleescobar.runetools.asm.util.LabelMap
 import com.github.kyleescobar.runetools.asm.util.next
 import com.github.kyleescobar.runetools.deobfuscator.Transformer
+import com.google.common.collect.MultimapBuilder
 import com.javadeobfuscator.deobfuscator.utils.Utils
 import me.coley.analysis.util.InheritanceGraph
 import org.objectweb.asm.Opcodes.*
 import org.objectweb.asm.Type
 import org.objectweb.asm.Type.*
 import org.objectweb.asm.tree.AbstractInsnNode
+import org.objectweb.asm.tree.ClassNode
 import org.objectweb.asm.tree.JumpInsnNode
 import org.objectweb.asm.tree.LabelNode
 import org.objectweb.asm.tree.MethodInsnNode
@@ -26,7 +28,7 @@ class OpaquePredicateRemover : Transformer {
 
     override fun run(pool: ClassPool) {
         removeChecks(pool)
-        //removeArgs(pool)
+        removeArgs(pool)
     }
 
     private fun removeChecks(pool: ClassPool) {
@@ -74,75 +76,64 @@ class OpaquePredicateRemover : Transformer {
     }
 
     private fun removeArgs(pool: ClassPool) {
-        val inheritanceGraph = InheritanceGraph()
-        inheritanceGraph.addClasspath()
-        inheritanceGraph.addModulePath()
-        pool.classMap.values.forEach {
-            val parents = mutableListOf<String>()
-            parents.add(it.superName)
-            parents.addAll(it.interfaces)
-            inheritanceGraph.add(it.name, parents)
-        }
-
-        val mappings = mutableMapOf<String, String>()
+        val classes = pool.classes.associateBy { it.name }
+        val topMethods = hashSetOf<String>()
+        val methodOverridesMap = MultimapBuilder.hashKeys().arrayListValues().build<String, Pair<ClassNode, MethodNode>>()
+        val methodOverrides = methodOverridesMap.asMap()
 
         pool.classes.forEach { cls ->
-            cls.methods.forEach methodLoop@ { method ->
-                if(method.name.startsWith("<")) return@methodLoop
-                if(mappings.containsKey("${cls.name}.${method.name}${method.desc}")) return@methodLoop
-                if(method.hasOpaqueArg()) {
-                    val oldDesc = method.desc
-                    val newDesc = method.desc.dropOpaqueArgDesc()
-
-                    /*
-                     * Update any possible child overrides of this method in
-                     * the class hierarchy.
-                     */
-                    inheritanceGraph.getAllChildren(cls.name).forEach { child ->
-                        val childMethod = pool.getClass(child)?.methods?.firstOrNull { it.name == method.name && it.desc == method.desc }
-                        if(childMethod != null) {
-                            if(!childMethod.name.startsWith("<")) {
-                                mappings["$child.${method.name}$oldDesc"] = newDesc
-                                argCount++
-                            }
-                        }
-                    }
-
-                    /*
-                     * Now update the current method's descriptor
-                     */
-                    mappings["${cls.name}.${method.name}$oldDesc"] = newDesc
-                    argCount++
+            val parents = getParentClasses(cls, classes)
+            cls.methods.forEach { method ->
+                if(parents.none { it.methods.any { it.name == method.name && it.desc == method.desc } }) {
+                    topMethods.add("${cls.name}.${method.name}${method.desc}")
                 }
             }
         }
 
-        /*
-         * Now we loop through all method instructions in order to update them as well.
-         */
+        pool.classes.forEach { cls ->
+            cls.methods.forEach methodLoop@ { method ->
+                val override = getMethodOverrides(cls.name, method.name, method.desc, topMethods.toList(), classes) ?: return@methodLoop
+                methodOverridesMap.put(override, cls to method)
+            }
+        }
+
+        val it = methodOverrides.iterator()
+        it.forEach { entry ->
+            if(entry.value.any { !it.second.hasOpaqueArg() }) {
+                it.remove()
+            }
+        }
+
         pool.classes.forEach { cls ->
             cls.methods.forEach { method ->
                 val insns = method.instructions
                 for(insn in insns) {
                     if(insn !is MethodInsnNode) continue
-                    val key = "${insn.owner}.${insn.name}${insn.desc}"
-                    if(!mappings.containsKey(key)) continue
-                    insn.desc = mappings[key]!!
-
-                    val prev = insn.previous
-                    if(Utils.willPushToStack(prev.opcode)) {
-                        insns.remove(prev)
+                    val override = getMethodOverrides(insn.owner, insn.name, insn.desc, methodOverrides.keys.toList(), classes) ?: continue
+                    if(!Utils.isInteger(insn.previous)) {
+                        methodOverrides.remove(override)
                     }
                 }
             }
         }
 
+        methodOverridesMap.values().forEach {
+            val newDesc = it.second.desc.dropOpaqueArgDesc()
+            it.second.desc = newDesc
+            argCount++
+        }
+
         pool.classes.forEach { cls ->
-            cls.methods.forEach methodLoop@ { method ->
-                val key = "${cls.name}.${method.name}${method.desc}"
-                val newDesc = mappings[key] ?: return@methodLoop
-                println("$key -> $newDesc")
-                method.desc = newDesc
+            cls.methods.forEach { method ->
+                val insns = method.instructions
+                for(insn in insns) {
+                    if(insn !is MethodInsnNode) continue
+                    if(getMethodOverrides(insn.owner, insn.name, insn.desc, methodOverrides.keys.toList(), classes) != null) {
+                        insn.desc = insn.desc.dropOpaqueArgDesc()
+                        val prev = insn.previous
+                        insns.remove(prev)
+                    }
+                }
             }
         }
 
@@ -207,5 +198,22 @@ class OpaquePredicateRemover : Transformer {
     private fun String.dropOpaqueArgDesc(): String {
         val type = Type.getMethodType(this)
         return Type.getMethodDescriptor(type.returnType, *type.argumentTypes.copyOf(type.argumentTypes.size - 1))
+    }
+
+    private fun getParentClasses(cls: ClassNode, classes: Map<String, ClassNode>): List<ClassNode> {
+        val results = mutableListOf<ClassNode>()
+        results.addAll(cls.interfaces.plus(cls.superName).mapNotNull { classes[it] }.flatMap { getParentClasses(it, classes).plus(it) })
+        return results
+    }
+
+    private fun getMethodOverrides(owner: String, name: String, desc: String, methods: List<String>, classes: Map<String, ClassNode>): String? {
+        val key = "$owner.$name$desc"
+        if(key in methods) return key
+        if(name == "<init>") return null
+        val cls = classes[owner] ?: return null
+        for(parent in getParentClasses(cls, classes)) {
+            return getMethodOverrides(parent.name, name, desc, methods, classes) ?: continue
+        }
+        return null
     }
 }
