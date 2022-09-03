@@ -14,5 +14,15 @@ object Test {
         pool.loadInfo()
 
         println("Loaded ${pool.classes.size} classes.")
+
+        val cls = pool.getClass("client")!!
+        val method = cls.methods.first { it.name == "mr" }
+
+        println("=== RELATIVES: client.class ===")
+        cls.relatives.forEach { println(it.name) }
+        println(" ")
+
+        val overrides = cls.resolveMethods("init", "()V")
+        overrides.forEach { println("${it.owner.name}.${it.name}${it.desc}") }
     }
 }
