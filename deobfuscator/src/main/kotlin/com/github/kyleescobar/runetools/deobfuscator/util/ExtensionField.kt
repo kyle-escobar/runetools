@@ -1,4 +1,4 @@
-package com.github.kyleescobar.runetools.asm.util
+package com.github.kyleescobar.runetools.deobfuscator.util
 
 import kotlin.reflect.KProperty
 
@@ -12,5 +12,5 @@ class ExtensionField<R, T>(private val init: (R) -> T = { throw IllegalStateExce
     }
 }
 
-fun <T, R> field(init: (R) -> T) = ExtensionField(init)
-fun <T, R> field() = ExtensionField<R, T>()
+fun <R, T> field(init: (R) -> T) = ExtensionField(init)
+fun <R, T> field() = ExtensionField<R, T>()
