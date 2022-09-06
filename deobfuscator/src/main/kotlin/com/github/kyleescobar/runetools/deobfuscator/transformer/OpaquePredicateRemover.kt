@@ -27,7 +27,6 @@ class OpaquePredicateRemover : Transformer {
     }
 
     private fun removeOpaqueMethodArgs(pool: ClassPool) {
-        val classMap = pool.classes.associateBy { it.name }
         val topMethods = hashSetOf<String>()
 
         pool.classes.forEach { cls ->

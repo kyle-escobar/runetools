@@ -2,6 +2,7 @@ package com.github.kyleescobar.runetools.deobfuscator
 
 import com.github.kyleescobar.runetools.deobfuscator.asm.ClassPool
 import com.github.kyleescobar.runetools.deobfuscator.transformer.*
+import com.github.kyleescobar.runetools.deobfuscator.transformer.MultiplierRemover
 import org.tinylog.kotlin.Logger
 import java.io.File
 import kotlin.reflect.full.createInstance
@@ -14,7 +15,12 @@ class Deobfuscator(val inputJar: File, val outputJar: File) {
         DeadCodeRemover::class,
         ControlFlowOptimizer::class,
         Renamer::class,
-        OpaquePredicateRemover::class
+        OpaquePredicateRemover::class,
+        GotoRemover::class,
+        InvalidConstructorRemover::class,
+        DeadCodeRemover::class,
+        StackFrameRebuilder::class,
+        MultiplierRemover::class
     )
 
     fun run() {
