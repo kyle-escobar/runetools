@@ -4,10 +4,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.check
 import com.github.ajalt.clikt.parameters.types.file
-import com.github.kyleescobar.runetools.deobfuscator.transformer.DeadCodeRemover
-import com.github.kyleescobar.runetools.deobfuscator.transformer.IllegalStateExceptionRemover
-import com.github.kyleescobar.runetools.deobfuscator.transformer.RuntimeExceptionRemover
-import com.github.kyleescobar.runetools.deobfuscator.transformer.TryCatchHandlerFixer
+import com.github.kyleescobar.runetools.deobfuscator.transformer.*
 import dev.kyleescobar.byteflow.ClassGroup
 import org.tinylog.kotlin.Logger
 import java.io.File
@@ -38,6 +35,8 @@ class Deobfuscator(private val inputJar: File, private val outputJar: File) {
         add<RuntimeExceptionRemover>()
         //add<DeadCodeRemover>()
         add<IllegalStateExceptionRemover>()
+        add<ArithmeticOrderFixer>()
+        add<MultiplierRemover>()
 
         Logger.info("Registered ${transformers.size} bytecode transformers.")
     }
