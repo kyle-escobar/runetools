@@ -1,9 +1,9 @@
 package com.github.kyleescobar.runetools.deobfuscator
 
-import com.github.kyleescobar.runetools.deobfuscator.asm.ClassPool
+import dev.kyleescobar.byteflow.ClassGroup
 
 interface Transformer {
 
-    fun run(pool: ClassPool)
+    fun run(group: ClassGroup)
 
 }
