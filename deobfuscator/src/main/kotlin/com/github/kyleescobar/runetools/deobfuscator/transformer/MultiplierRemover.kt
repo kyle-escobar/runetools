@@ -2,7 +2,14 @@ package com.github.kyleescobar.runetools.deobfuscator.transformer
 
 import com.github.kyleescobar.runetools.deobfuscator.Transformer
 import com.github.kyleescobar.runetools.deobfuscator.asm.ClassPool
+import com.github.kyleescobar.runetools.deobfuscator.asm.owner
 import com.google.common.collect.MultimapBuilder
+import me.coley.analysis.SimAnalyzer
+import me.coley.analysis.SimFrame
+import me.coley.analysis.SimInterpreter
+import me.coley.analysis.TypeChecker
+import me.coley.analysis.TypeResolver
+import me.coley.analysis.util.TypeUtil
 import org.objectweb.asm.Opcodes.*
 import org.objectweb.asm.Type
 import org.objectweb.asm.tree.AbstractInsnNode
@@ -22,7 +29,33 @@ class MultiplierRemover : Transformer {
     private val multiplierAnalyzer = Analyzer(MultiplierInterpreter(multipliers))
 
     override fun run(pool: ClassPool) {
-        solveMultipliers(pool)
+        val analyzer = object : SimAnalyzer(SimInterpreter()) {
+            override fun createTypeChecker() = TypeChecker { parent, child ->
+                pool.inheritanceGraph.getAllParents(child.internalName).contains(parent.internalName)
+            }
+
+            override fun createTypeResolver() = object : TypeResolver {
+                override fun common(type1: Type, type2: Type): Type {
+                    val common = pool.inheritanceGraph.getCommon(type1.internalName, type2.internalName) ?: return TypeUtil.OBJECT_TYPE
+                    return Type.getObjectType(common)
+                }
+
+                override fun commonException(type1: Type, type2: Type): Type {
+                    val common = pool.inheritanceGraph.getCommon(type1.internalName, type2.internalName) ?: return TypeUtil.EXCEPTION_TYPE
+                    return Type.getObjectType(common)
+                }
+            }
+        }
+        analyzer.setSkipDeadCodeBlocks(true)
+        analyzer.setThrowUnresolvedAnalyzerErrors(false)
+
+        pool.classes.filter { !it.name.contains("/") }.forEach { cls ->
+            cls.methods.forEach { method ->
+                val insns = method.instructions.toArray()
+                val frames = analyzer.analyze(method.owner.name, method) as Array<SimFrame>
+                print("")
+            }
+        }
     }
 
     private fun solveMultipliers(pool: ClassPool) {
@@ -45,6 +78,29 @@ class MultiplierRemover : Transformer {
         val decoders = hashMapOf<String, Number>()
         val fieldMultipliers = MultimapBuilder.hashKeys().arrayListValues().build<String, Multiplier>()
         val fieldAssignments = hashSetOf<FieldMultiplierAssignment>()
+
+        fun solve() {
+            while(true) {
+
+            }
+        }
+
+        private fun simplify() {
+            val itr = fieldAssignments.iterator()
+            for(entry in itr) {
+                if(entry.setter in decoders) {
+                    itr.remove()
+                    val decoder = decoders.getValue(entry.setter)
+                    val simplifiedDecoder = MulMath.multiply(decoder, entry.number)
+                    if(MulMath.isMultiplier(simplifiedDecoder)) {
+                        fieldMultipliers.put(entry.getter, Multiplier.Decoder(simplifiedDecoder))
+                    }
+                } else if(entry.getter in decoders) {
+                    itr.remove()
+                    val encoder = MulMath.invert(decoders.getValue(entry.getter))
+                }
+            }
+        }
     }
 
     /**
