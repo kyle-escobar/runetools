@@ -4,5 +4,6 @@ plugins {
 
 rootProject.name = "runetools"
 
+include(":util")
 include(":asm")
 include(":deobfuscator")
