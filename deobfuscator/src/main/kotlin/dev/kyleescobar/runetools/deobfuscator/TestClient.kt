@@ -37,6 +37,7 @@ class TestClient(private val file: File) {
         val classloader = URLClassLoader(arrayOf(file.toURI().toURL()))
         val main = params["initial_class"]!!.replace(".class", "")
         val applet = classloader.loadClass(main).newInstance() as Applet
+
         applet.background = Color.BLACK
         applet.size = Dimension(params["applet_minwidth"]!!.toInt(), params["applet_minheight"]!!.toInt())
         applet.preferredSize = applet.size

@@ -1,5 +1,6 @@
 package dev.kyleescobar.runetools.deobfuscator
 
+import dev.kyleescobar.runetools.asm.ClassFile
 import dev.kyleescobar.runetools.asm.ClassGroup
 import dev.kyleescobar.runetools.deob.util.JarUtil
 import dev.kyleescobar.runetools.deobfuscator.transformer.*
@@ -13,6 +14,8 @@ import kotlin.system.exitProcess
 object Deobfuscator {
 
     private lateinit var group: ClassGroup
+    private val ignoredClasses = mutableListOf<ClassFile>()
+
     private lateinit var inputFile: File
     private lateinit var outputFile: File
     private var postTestEnabled = false
@@ -49,14 +52,21 @@ object Deobfuscator {
         }
 
         Logger.info("Exporting deobfuscated classes to jar file: ${outputFile.path}.")
+        ignoredClasses.forEach { cls ->
+            group.addClass(cls)
+        }
         JarUtil.save(group, outputFile)
-
         Logger.info("Deobfuscator completed successfully.")
 
         if(postTestEnabled) {
             Logger.info("Testing mode enabled! Starting test-client from jar file: ${outputFile.path}.")
-            val client = TestClient(outputFile)
-            client.start()
+
+            try {
+                TestClient(outputFile).start()
+            } catch (e: Exception) {
+                e.printStackTrace(System.err)
+            }
+
             Logger.info("Test client process has exited.")
         }
     }
@@ -71,7 +81,14 @@ object Deobfuscator {
 
         Logger.info("Loading classes from jar file: ${inputFile.path}.")
         group = JarUtil.load(inputFile)
-        Logger.info("Found ${group.classes.size} class files.")
+        val classes = group.classes.toTypedArray()
+        for(cls in classes) {
+            if(cls.name.contains("/")) {
+                ignoredClasses.add(cls)
+                group.removeClass(cls)
+            }
+        }
+        Logger.info("Found ${group.classes.size} classes. (Ignored ${ignoredClasses.size} classes).")
 
         transformers.clear()
 
@@ -88,6 +105,9 @@ object Deobfuscator {
         register<DeadCodeRemover>()
         register<UnusedMethodRemover>()
         register<UnusedParameterRemover>()
+        register<FieldClassOptimizer>()
+        register<ClassMemberSorter>()
+        register<UnusedClassRemover>()
         register<AnnotationRemover>()
 
         Logger.info("Registered ${transformers.size} bytecode transformers.")
@@ -102,19 +122,17 @@ object Deobfuscator {
             .setStyle(ProgressBarStyle.COLORFUL_UNICODE_BLOCK)
             .continuousUpdate()
             .clearDisplayOnFinish()
+            .setMaxRenderedLength(100)
+            .setUnit(" transforms", 1L)
             .build()
 
         progressBar.use { p ->
             transformers.forEach { transformer ->
                 p.step()
-                p.extraMessage = "Running transformer: '${transformer::class.simpleName}' \n"
-
                 Logger.info("Running transformer: '${transformer::class.simpleName}'.")
-
                 val start = System.currentTimeMillis()
                 transformer.run(group)
                 val end = System.currentTimeMillis()
-
                 Logger.info("Completed transformer: '${transformer::class.simpleName}' in ${end - start}ms.")
             }
         }

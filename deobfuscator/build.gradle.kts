@@ -19,3 +19,13 @@ application {
 tasks.named<JavaExec>("run") {
     workingDir = rootProject.projectDir
 }
+
+tasks.register<Jar>("shadowJar") {
+    group = "build"
+    manifest {
+        attributes["Main-Class"] = application.mainClass.get()
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.runtimeClasspath.get().map(::zipTree))
+    with(tasks.jar.get())
+}
