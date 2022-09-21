@@ -1,3 +1,7 @@
+plugins {
+    java
+}
+
 dependencies {
     api(project(":util"))
     implementation("org.ow2.asm:asm:_")
