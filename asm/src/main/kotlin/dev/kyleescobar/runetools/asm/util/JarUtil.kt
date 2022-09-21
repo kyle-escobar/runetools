@@ -52,11 +52,11 @@ object JarUtil {
     }
 
     private fun writeClass(cls: ClassNode): ByteArray {
-        val writer = NonLoadingClassWriter(cls.pool, ClassWriter.COMPUTE_FRAMES or ClassWriter.COMPUTE_MAXS)
+        val writer = NonLoadingClassWriter(cls.pool, ClassWriter.COMPUTE_MAXS)
         val checker = CheckClassAdapter(writer, false)
-        cls.accept(checker)
+        cls.accept(writer)
         val bytes = writer.toByteArray()
-        validate(cls.name, bytes)
+        //validate(cls.name, bytes)
         return bytes
     }
 

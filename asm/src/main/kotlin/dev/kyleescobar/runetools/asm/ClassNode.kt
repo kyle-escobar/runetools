@@ -35,7 +35,7 @@ class ClassNode(val pool: ClassPool) {
         }
 
         methods.forEach { method ->
-            val mv = visitor.visitMethod(method.access, method.name, method.signature.toString(), null, method.exceptions.toTypedArray())
+            val mv = visitor.visitMethod(method.access, method.name, method.signature.toString(), null, method.code.exceptions.toTypedArray())
             method.accept(mv)
         }
 
