@@ -2,7 +2,9 @@ package dev.kyleescobar.runetools.deobfuscator
 
 import dev.kyleescobar.runetools.asm.ClassGroup
 import dev.kyleescobar.runetools.deob.util.JarUtil
-import dev.kyleescobar.runetools.deobfuscator.transformer.TestTransformer
+import dev.kyleescobar.runetools.deobfuscator.transformer.ControlFlowOptimizer
+import dev.kyleescobar.runetools.deobfuscator.transformer.Renamer
+import dev.kyleescobar.runetools.deobfuscator.transformer.RuntimeExceptionRemover
 import org.tinylog.kotlin.Logger
 import java.io.File
 import kotlin.reflect.full.createInstance
@@ -76,7 +78,9 @@ object Deobfuscator {
         /*
          * ==== Register Transformers ====
          */
-        register<TestTransformer>()
+        register<RuntimeExceptionRemover>()
+        register<ControlFlowOptimizer>()
+        register<Renamer>()
 
         Logger.info("Registered ${transformers.size} bytecode transformers.")
     }
@@ -98,5 +102,9 @@ object Deobfuscator {
     private inline fun <reified T : Transformer> register() {
         val inst = T::class.createInstance()
         transformers.add(inst)
+    }
+
+    fun isObfuscatedName(name: String): Boolean {
+        return name.length <= 2 || (name.length == 3 && listOf("aa", "ab", "ac", "ad", "ae", "af", "ag").any { name.startsWith(it) })
     }
 }

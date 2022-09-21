@@ -139,7 +139,7 @@ public class Renamer implements Deobfuscator
 				{
 					if (method.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE) == null)
 					{
-						method.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, true).setElement("descriptor", method.getDescriptor().toString());
+						//method.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, false).setElement("descriptor", method.getDescriptor().toString());
 					}
 				}
 
@@ -159,7 +159,7 @@ public class Renamer implements Deobfuscator
 				{
 					if (field.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE) == null)
 					{
-						field.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, true).setElement("descriptor", field.getType().toString());
+						//field.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, false).setElement("descriptor", field.getType().toString());
 					}
 					field.setType(Type.getType("L" + name + ";", field.getType().getDimensions()));
 				}
@@ -288,9 +288,9 @@ public class Renamer implements Deobfuscator
 
 	private static <T extends Annotated & Named> void addObfuscatedName(T object)
 	{
-		if (object.findAnnotation(DeobAnnotations.OBFUSCATED_NAME) == null)
+		/*if (object.findAnnotation(DeobAnnotations.OBFUSCATED_NAME) == null)
 		{
-			object.findAnnotation(DeobAnnotations.OBFUSCATED_NAME, true).setElement(object.getName());
-		}
+			object.findAnnotation(DeobAnnotations.OBFUSCATED_NAME, false).setElement(object.getName());
+		}*/
 	}
 }
