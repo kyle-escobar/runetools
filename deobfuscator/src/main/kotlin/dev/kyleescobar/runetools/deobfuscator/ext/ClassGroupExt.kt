@@ -6,7 +6,7 @@ import dev.kyleescobar.runetools.asm.Method
 import dev.kyleescobar.runetools.deobfuscator.Deobfuscator
 
 fun Collection<ClassFile>.filterClientClasses(): Collection<ClassFile> {
-    return this.filter { it.name == "client" || Deobfuscator.isObfuscatedName(it.name) }.toList()
+    return this.filter { !it.name.contains("/") }.toList()
 }
 
 fun Collection<Method>.filterObfuscatedMethods(): Collection<Method> {
