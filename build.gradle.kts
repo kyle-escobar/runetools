@@ -5,8 +5,8 @@ plugins {
 allprojects {
     apply(plugin = "org.jetbrains.kotlin.jvm")
 
-    group = "com.github.kyleescobar.runetools"
-    version = "1.0.0"
+    group = "dev.kyleescobar.runetools"
+    version = "0.0.1"
 
     repositories {
         mavenLocal()
@@ -24,6 +24,11 @@ allprojects {
             kotlinOptions {
                 jvmTarget = JavaVersion.VERSION_11.toString()
             }
+        }
+
+        compileJava {
+            sourceCompatibility = JavaVersion.VERSION_11.toString()
+            targetCompatibility = JavaVersion.VERSION_11.toString()
         }
     }
 }
