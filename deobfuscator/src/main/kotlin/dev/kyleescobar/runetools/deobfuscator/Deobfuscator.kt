@@ -3,9 +3,6 @@ package dev.kyleescobar.runetools.deobfuscator
 import dev.kyleescobar.runetools.asm.ClassGroup
 import dev.kyleescobar.runetools.deob.util.JarUtil
 import dev.kyleescobar.runetools.deobfuscator.transformer.*
-import dev.reimer.progressbar.ktx.progressBar
-import me.tongfei.progressbar.DelegatingProgressBarConsumer
-import me.tongfei.progressbar.ProgressBar
 import me.tongfei.progressbar.ProgressBarBuilder
 import me.tongfei.progressbar.ProgressBarStyle
 import org.tinylog.kotlin.Logger
@@ -87,9 +84,11 @@ object Deobfuscator {
         register<DeadCodeRemover>()
         register<UnusedMethodRemover>()
         register<IllegalStateExceptionRemover>()
-        register<DeadParameterRemover>()
+        register<RedundantParameterRemover>()
         register<DeadCodeRemover>()
         register<UnusedMethodRemover>()
+        register<UnusedParameterRemover>()
+        register<AnnotationRemover>()
 
         Logger.info("Registered ${transformers.size} bytecode transformers.")
     }
@@ -100,16 +99,16 @@ object Deobfuscator {
         val progressBar = ProgressBarBuilder()
             .setTaskName("Deobfuscator")
             .setInitialMax(transformers.size.toLong())
-            .showSpeed()
-            .clearDisplayOnFinish()
-            .setStyle(ProgressBarStyle.ASCII)
-            .setUpdateIntervalMillis(1)
+            .setStyle(ProgressBarStyle.COLORFUL_UNICODE_BLOCK)
             .continuousUpdate()
+            .clearDisplayOnFinish()
             .build()
 
         progressBar.use { p ->
             transformers.forEach { transformer ->
                 p.step()
+                p.extraMessage = "Running transformer: '${transformer::class.simpleName}' \n"
+
                 Logger.info("Running transformer: '${transformer::class.simpleName}'.")
 
                 val start = System.currentTimeMillis()

@@ -25,29 +25,26 @@
 package dev.kyleescobar.runetools.deob.deobfuscators;
 
 import com.google.common.base.Strings;
-import java.util.List;
-
-import dev.kyleescobar.runetools.asm.pool.Class;
-import dev.kyleescobar.runetools.deob.DeobAnnotations;
-import dev.kyleescobar.runetools.deob.Deobfuscator;
-import dev.kyleescobar.runetools.asm.ClassFile;
-import dev.kyleescobar.runetools.asm.ClassGroup;
-import dev.kyleescobar.runetools.asm.Field;
-import dev.kyleescobar.runetools.asm.Interfaces;
-import dev.kyleescobar.runetools.asm.Method;
-import dev.kyleescobar.runetools.asm.Named;
-import dev.kyleescobar.runetools.asm.Type;
+import dev.kyleescobar.runetools.asm.*;
 import dev.kyleescobar.runetools.asm.attributes.Annotated;
 import dev.kyleescobar.runetools.asm.attributes.Code;
 import dev.kyleescobar.runetools.asm.attributes.code.Exceptions;
 import dev.kyleescobar.runetools.asm.attributes.code.Instruction;
 import dev.kyleescobar.runetools.asm.attributes.code.LocalVariable;
 import dev.kyleescobar.runetools.asm.attributes.code.Parameter;
+import dev.kyleescobar.runetools.asm.pool.Class;
 import dev.kyleescobar.runetools.asm.signature.Signature;
 import dev.kyleescobar.runetools.asm.signature.util.VirtualMethods;
+import dev.kyleescobar.runetools.deob.DeobAnnotations;
+import dev.kyleescobar.runetools.deob.Deobfuscator;
 import dev.kyleescobar.runetools.deob.util.NameMappings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+
+import static dev.kyleescobar.runetools.deob.DeobAnnotations.OBFUSCATED_NAME;
+import static dev.kyleescobar.runetools.deob.DeobAnnotations.OBFUSCATED_SIGNATURE;
 
 public class Renamer implements Deobfuscator
 {
@@ -137,9 +134,9 @@ public class Renamer implements Deobfuscator
 
 				if (!method.getDescriptor().equals(newSignature))
 				{
-					if (method.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE) == null)
+					if (method.findAnnotation(OBFUSCATED_SIGNATURE) == null)
 					{
-						//method.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, false).setElement("descriptor", method.getDescriptor().toString());
+						method.findAnnotation(OBFUSCATED_SIGNATURE, true).setElement("descriptor", method.getDescriptor().toString());
 					}
 				}
 
@@ -157,9 +154,9 @@ public class Renamer implements Deobfuscator
 			{
 				if (field.getType().getInternalName().equals(cf.getName()))
 				{
-					if (field.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE) == null)
+					if (field.findAnnotation(OBFUSCATED_SIGNATURE) == null)
 					{
-						//field.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, false).setElement("descriptor", field.getType().toString());
+						field.findAnnotation(OBFUSCATED_SIGNATURE, true).setElement("descriptor", field.getType().toString());
 					}
 					field.setType(Type.getType("L" + name + ";", field.getType().getDimensions()));
 				}
@@ -180,7 +177,7 @@ public class Renamer implements Deobfuscator
 				if (m.getCode() != null)
 				{
 					m.getCode().getInstructions()
-						.regeneratePool();
+							.regeneratePool();
 				}
 			}
 		}
@@ -247,12 +244,12 @@ public class Renamer implements Deobfuscator
 
 						LocalVariable oldVar = p.getLocalVariable();
 						LocalVariable newVar = new LocalVariable(
-							newParams[index],
-							oldVar.getDesc(),
-							oldVar.getSignature(),
-							oldVar.getStart(),
-							oldVar.getEnd(),
-							oldVar.getIndex()
+								newParams[index],
+								oldVar.getDesc(),
+								oldVar.getSignature(),
+								oldVar.getStart(),
+								oldVar.getEnd(),
+								oldVar.getIndex()
 						);
 
 						p.setLocalVariable(newVar);
@@ -288,9 +285,10 @@ public class Renamer implements Deobfuscator
 
 	private static <T extends Annotated & Named> void addObfuscatedName(T object)
 	{
-		/*if (object.findAnnotation(DeobAnnotations.OBFUSCATED_NAME) == null)
+		if (object.findAnnotation(OBFUSCATED_NAME) == null)
 		{
-			object.findAnnotation(DeobAnnotations.OBFUSCATED_NAME, false).setElement(object.getName());
-		}*/
+			object.findAnnotation(OBFUSCATED_NAME, true).setElement(object.getName());
+		}
 	}
 }
+

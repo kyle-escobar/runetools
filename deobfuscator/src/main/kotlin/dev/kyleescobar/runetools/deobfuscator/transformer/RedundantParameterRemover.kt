@@ -16,11 +16,12 @@ import dev.kyleescobar.runetools.asm.execution.Execution
 import dev.kyleescobar.runetools.asm.execution.InstructionContext
 import dev.kyleescobar.runetools.asm.execution.MethodContext
 import dev.kyleescobar.runetools.asm.execution.StackContext
+import dev.kyleescobar.runetools.deob.DeobAnnotations
 import dev.kyleescobar.runetools.deobfuscator.Transformer
 import org.tinylog.kotlin.Logger
 import java.util.*
 
-class DeadParameterRemover : Transformer {
+class RedundantParameterRemover : Transformer {
 
     private val parameters: MutableMap<ConstantMethodParameter, ConstantMethodParameter> = HashMap()
     private val mparams: Multimap<Method, ConstantMethodParameter?> = HashMultimap.create()
@@ -228,6 +229,10 @@ class DeadParameterRemover : Transformer {
                 continue
             }
 
+            if(cmp.paramIndex + 1 == mctx.method.descriptor.size()) {
+                annotateObfuscatedSignature(cmp)
+            }
+
             for (ins in cmp.operations)  // comparisons
             {
                 if (ins.instructions == null || ins.instructions.code.method !== mctx.method) {
@@ -273,6 +278,20 @@ class DeadParameterRemover : Transformer {
             }
         }
         return count
+    }
+
+    private fun annotateObfuscatedSignature(parameter: ConstantMethodParameter) {
+        for (m in parameter.methods) {
+            val value: Any = parameter.values[0]
+            val obfuscatedSignature = m.findAnnotation(DeobAnnotations.OBFUSCATED_SIGNATURE, true)
+            if (obfuscatedSignature.size() == 2) {
+                // already annotated
+                continue
+            } else if (obfuscatedSignature.size() == 0) {
+                obfuscatedSignature.setElement("descriptor", m.descriptor.toString())
+            }
+            obfuscatedSignature.setElement("garbageValue", value.toString())
+        }
     }
 
     private var count = 0
