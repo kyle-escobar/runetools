@@ -5,48 +5,55 @@ import dev.kyleescobar.runetools.asm.ClassGroup
 import dev.kyleescobar.runetools.asm.Method
 import dev.kyleescobar.runetools.asm.attributes.code.instruction.types.InvokeInstruction
 import dev.kyleescobar.runetools.deob.Deob
-import dev.kyleescobar.runetools.deobfuscator.Deobfuscator
 import dev.kyleescobar.runetools.deobfuscator.Transformer
-import dev.kyleescobar.runetools.deobfuscator.ext.filterClientClasses
 import org.tinylog.kotlin.Logger
 
 class UnusedMethodRemover : Transformer {
 
     private var count = 0
-
-    private val methods = mutableListOf<Method>()
-
-    private fun ClassFile.extendsApplet(): Boolean {
-        if(this.parent != null) {
-            return this.parent.extendsApplet()
-        }
-        return this.superName == "java/applet/Applet"
-    }
+    private val methods: MutableSet<Method?> = HashSet()
 
     override fun run(group: ClassGroup) {
-        group.classes.filterClientClasses().forEach { cls ->
-            cls.methods.forEach methodLoop@ { method ->
-                if(method.code == null) return@methodLoop
-                method.code.instructions.instructions.forEach insnLoop@ { insn ->
-                    if(insn !is InvokeInstruction) return@insnLoop
-                    methods.addAll(insn.methods)
-                }
+        for (cf in group.classes) {
+            for (method in cf.methods) {
+                findMethodInvokes(method)
             }
         }
 
-        group.classes.filterClientClasses().forEach { cls ->
-            val extendsApplet = cls.extendsApplet()
-            val methods = cls.methods.toTypedArray()
-            for(method in methods) {
-                if(!Deob.isObfuscated(method.name) && method.name != "<init>") continue
-                if(extendsApplet && method.name == "<init>") continue
-                if(!methods.contains(method)) {
-                    cls.removeMethod(method)
-                    count++
+        for (cf in group.classes) {
+            val extendsApplet = extendsApplet(cf)
+            for (method in cf.methods.toList()) {
+                // constructors can't be renamed, but are obfuscated
+                if (!Deob.isObfuscated(method.name) && !method.name.equals("<init>")) {
+                    continue
+                }
+                if (extendsApplet && method.name.equals("<init>")) {
+                    continue
+                }
+                if (!methods.contains(method)) {
+                    cf.removeMethod(method)
+                    ++count
                 }
             }
         }
 
         Logger.info("Removed $count unused methods.")
+    }
+
+    private fun findMethodInvokes(method: Method) {
+        val code = method.code ?: return
+        for (i in code.instructions.instructions) {
+            if (i !is InvokeInstruction) {
+                continue
+            }
+            val ii = i as InvokeInstruction
+            methods.addAll(ii.methods)
+        }
+    }
+
+    private fun extendsApplet(cf: ClassFile): Boolean {
+        return if (cf.parent != null) {
+            extendsApplet(cf.parent)
+        } else cf.superName.equals("java/applet/Applet")
     }
 }

@@ -3,6 +3,11 @@ package dev.kyleescobar.runetools.deobfuscator
 import dev.kyleescobar.runetools.asm.ClassGroup
 import dev.kyleescobar.runetools.deob.util.JarUtil
 import dev.kyleescobar.runetools.deobfuscator.transformer.*
+import dev.reimer.progressbar.ktx.progressBar
+import me.tongfei.progressbar.DelegatingProgressBarConsumer
+import me.tongfei.progressbar.ProgressBar
+import me.tongfei.progressbar.ProgressBarBuilder
+import me.tongfei.progressbar.ProgressBarStyle
 import org.tinylog.kotlin.Logger
 import java.io.File
 import kotlin.reflect.full.createInstance
@@ -79,9 +84,12 @@ object Deobfuscator {
         register<RuntimeExceptionRemover>()
         register<ControlFlowOptimizer>()
         register<Renamer>()
-        //register<DeadCodeRemover>()
+        register<DeadCodeRemover>()
         register<UnusedMethodRemover>()
         register<IllegalStateExceptionRemover>()
+        register<DeadParameterRemover>()
+        register<DeadCodeRemover>()
+        register<UnusedMethodRemover>()
 
         Logger.info("Registered ${transformers.size} bytecode transformers.")
     }
@@ -89,12 +97,27 @@ object Deobfuscator {
     private fun run() {
         Logger.info("Starting bytecode transformations.")
 
-        transformers.forEach { transformer ->
-            Logger.info("Running transformer: '${transformer::class.simpleName}'.")
-            val start = System.currentTimeMillis()
-            transformer.run(group)
-            val end = System.currentTimeMillis()
-            Logger.info("Completed transformer: '${transformer::class.simpleName}' in ${end - start}ms.")
+        val progressBar = ProgressBarBuilder()
+            .setTaskName("Deobfuscator")
+            .setInitialMax(transformers.size.toLong())
+            .showSpeed()
+            .clearDisplayOnFinish()
+            .setStyle(ProgressBarStyle.ASCII)
+            .setUpdateIntervalMillis(1)
+            .continuousUpdate()
+            .build()
+
+        progressBar.use { p ->
+            transformers.forEach { transformer ->
+                p.step()
+                Logger.info("Running transformer: '${transformer::class.simpleName}'.")
+
+                val start = System.currentTimeMillis()
+                transformer.run(group)
+                val end = System.currentTimeMillis()
+
+                Logger.info("Completed transformer: '${transformer::class.simpleName}' in ${end - start}ms.")
+            }
         }
 
         Logger.info("Successfully completed all bytecode transformations.")

@@ -1,61 +1,61 @@
 package dev.kyleescobar.runetools.deobfuscator.transformer
 
 import dev.kyleescobar.runetools.asm.ClassGroup
-import dev.kyleescobar.runetools.asm.attributes.code.Exception
+import dev.kyleescobar.runetools.asm.Method
 import dev.kyleescobar.runetools.asm.attributes.code.Instruction
+import dev.kyleescobar.runetools.asm.attributes.code.Instructions
 import dev.kyleescobar.runetools.asm.attributes.code.Label
 import dev.kyleescobar.runetools.asm.execution.Execution
 import dev.kyleescobar.runetools.deobfuscator.Transformer
-import dev.kyleescobar.runetools.deobfuscator.ext.filterClientClasses
 import org.tinylog.kotlin.Logger
 
 class DeadCodeRemover : Transformer {
 
-    private var count = 0
+    private var execution: Execution? = null
 
-    private lateinit var execution: Execution
+    private fun removeUnused(m: Method): Int {
+        val ins: Instructions = m.code.instructions
+        var count = 0
+        val insCopy: List<Instruction> = ins.instructions.toMutableList()
+        for (j in insCopy.indices) {
+            val i = insCopy[j]
+            if (!execution!!.executed.contains(i)) {
+                val exceptions = m.code.exceptions.exceptions.toTypedArray()
+                for (e in exceptions) {
+                    if (e.start.next() === i) {
+                        e.start = ins.createLabelFor(insCopy[j + 1])
+                        if (e.start.next() === e.end.next()) {
+                            m.code.exceptions.remove(e)
+                            continue
+                        }
+                    }
+                    if (e.handler.next() === i) {
+                        m.code.exceptions.remove(e)
+                    }
+                }
+                if (i is Label) continue
+                ins.remove(i)
+                ++count
+            }
+        }
+        return count
+    }
 
     override fun run(group: ClassGroup) {
         group.buildClassGraph()
 
         execution = Execution(group)
-        execution.populateInitialMethods()
-        execution.run()
+        execution!!.populateInitialMethods()
+        execution!!.run()
 
-        group.classes.filterClientClasses().forEach { cls ->
-            cls.methods.forEach methodLoop@ { method ->
-                if(method.code ==  null) return@methodLoop
-                val insns = method.code.instructions
-                val insnsCopy = mutableListOf<Instruction>().also { it.addAll(insns.instructions) }
-
-                for(i in insnsCopy.indices) {
-                    val insn = insnsCopy[i]
-                    if(!execution.executed.contains(insn)) {
-                        val exceptions = mutableListOf<Exception>().also { it.addAll(method.code.exceptions.exceptions) }
-                        for(exception in exceptions) {
-                            if(exception.start.next() == insn) {
-                                exception.start = insns.createLabelFor(insnsCopy[i + 1])
-                                if(exception.start.next() == exception.end.next()) {
-                                    method.code.exceptions.remove(exception)
-                                    continue
-                                }
-                            }
-                            if(exception.handler.next() == insn) {
-                                method.code.exceptions.remove(exception)
-                            }
-                        }
-
-                        if(insn is Label) {
-                            continue
-                        }
-
-                        insns.remove(insn)
-                        count++
-                    }
-                }
+        var count = 0
+        for (cf in group.classes) {
+            for (m in cf.methods) {
+                if (m.code == null) continue
+                count += removeUnused(m)
             }
         }
 
-        Logger.info("Removed $count dead-code instructions.")
+        Logger.info("Removed $count dead code instructions.")
     }
 }
